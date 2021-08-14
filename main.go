@@ -1,7 +1,7 @@
 /*
 TODO:	- check for OS name and version
-		- add UDP
-		- do 'stealth' scan
+		- do 'stealth' scan (SYN / FIN)
+		- UDP scan (RFC1122 Section 4.1.3.1)
 */
 
 package main
@@ -20,15 +20,13 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-func Ulimit() int64 {
+func ulimit() int64 {
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
 		panic(err)
 	}
 
-	s := strings.TrimSpace(string(out))
-
-	i, err := strconv.ParseInt(s, 10, 64)
+	i, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -36,9 +34,8 @@ func Ulimit() int64 {
 	return i
 }
 
-func ScanPort(ip string, port int, timeout time.Duration) {
-	target := fmt.Sprintf("%s:%d", ip, port)
-	conn, err := net.DialTimeout("tcp", target, timeout)
+func scanTCP(host string, port int, timeout time.Duration) {
+	conn, err := net.DialTimeout("tcp", host+":"+strconv.Itoa(port), timeout)
 
 	if err != nil {
 		//if strings.HasSuffix(err.Error(), "timeout") {
@@ -48,23 +45,24 @@ func ScanPort(ip string, port int, timeout time.Duration) {
 		if strings.HasSuffix(err.Error(), "files") {
 			//fmt.Println(err.Error())
 			time.Sleep(timeout)
-			ScanPort(ip, port, timeout)
+			scanTCP(host, port, timeout)
 		}
+
 		return
 	}
 
 	conn.Close()
-	fmt.Println(port, "open")
+	fmt.Printf("%d/tcp open\n", port)
 }
 
 func main() {
-	hostname := flag.String("h", "", "Network address to scan (ip or doman name")
+	host := flag.String("h", "localhost", "Network address to scan (ip or doman name")
 	timeout := flag.Duration("t", time.Second*5, "Timeout")
 	firstPort := flag.Int("fp", 1, "Begin scan from this port")
 	lastPort := flag.Int("lp", 65535, "Stop scan at this port")
 	flag.Parse()
 
-	lock := semaphore.NewWeighted(Ulimit())
+	lock := semaphore.NewWeighted(ulimit())
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
@@ -74,7 +72,7 @@ func main() {
 		go func(port int) {
 			defer lock.Release(1)
 			defer wg.Done()
-			ScanPort(*hostname, port, *timeout)
+			scanTCP(*host, port, *timeout)
 		}(port)
 	}
 }
