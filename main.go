@@ -20,6 +20,12 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var host = flag.String("h", "localhost", "Network address to scan (ip or doman name")
+var timeout = flag.Duration("t", time.Second*5, "Timeout")
+var firstPort = flag.Int("fp", 1, "Begin scan from this port")
+var lastPort = flag.Int("lp", 65535, "Stop scan at this port")
+var banner = flag.Bool("b", false, "Show service banner")
+
 func ulimit() int64 {
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
@@ -34,9 +40,8 @@ func ulimit() int64 {
 	return i
 }
 
-func scanTCP(host string, port int, timeout time.Duration) {
-	conn, err := net.DialTimeout("tcp", host+":"+strconv.Itoa(port), timeout)
-
+func scanTCP(port int) {
+	conn, err := net.DialTimeout("tcp", *host+":"+strconv.Itoa(port), *timeout)
 	if err != nil {
 		//if strings.HasSuffix(err.Error(), "timeout") {
 		//	fmt.Println(err.Error())
@@ -44,22 +49,35 @@ func scanTCP(host string, port int, timeout time.Duration) {
 		// too many open files
 		if strings.HasSuffix(err.Error(), "files") {
 			//fmt.Println(err.Error())
-			time.Sleep(timeout)
-			scanTCP(host, port, timeout)
+			time.Sleep(*timeout)
+			scanTCP(port)
 		}
 
 		return
 	}
 
+	// check for banner
+	bytesRead := 0
+	buffer := make([]byte, 4096)
+
+	if *banner {
+		conn.SetReadDeadline(time.Now().Add(*timeout))
+
+		bytesRead, _ = conn.Read(buffer)
+	}
+
 	conn.Close()
-	fmt.Printf("%d/tcp open\n", port)
+
+	fmt.Printf("%d/tcp open", port)
+
+	if bytesRead > 0 {
+		fmt.Printf("\t%s", buffer[0:bytesRead])
+	} else {
+		fmt.Printf("\n")
+	}
 }
 
 func main() {
-	host := flag.String("h", "localhost", "Network address to scan (ip or doman name")
-	timeout := flag.Duration("t", time.Second*5, "Timeout")
-	firstPort := flag.Int("fp", 1, "Begin scan from this port")
-	lastPort := flag.Int("lp", 65535, "Stop scan at this port")
 	flag.Parse()
 
 	lock := semaphore.NewWeighted(ulimit())
@@ -72,7 +90,7 @@ func main() {
 		go func(port int) {
 			defer lock.Release(1)
 			defer wg.Done()
-			scanTCP(*host, port, *timeout)
+			scanTCP(port)
 		}(port)
 	}
 }
