@@ -1,6 +1,9 @@
 /*
-TODO:	- check for OS name and version
-		- do 'stealth' scan (SYN / FIN)
+TODO:
+		- stealth scan (SYN / FIN)
+		- service scan
+		- OS fingerprint
+		- HW address
 		- UDP scan (RFC1122 Section 4.1.3.1)
 */
 
@@ -20,11 +23,14 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var host = flag.String("h", "localhost", "Network address to scan (ip or doman name")
-var timeout = flag.Duration("t", time.Second*5, "Timeout")
-var firstPort = flag.Int("fp", 1, "Begin scan from this port")
-var lastPort = flag.Int("lp", 65535, "Stop scan at this port")
-var banner = flag.Bool("b", false, "Show service banner")
+var (
+	host      = flag.String("h", "localhost", "Network address to scan (ip or doman name")
+	timeout   = flag.Duration("t", time.Second*5, "Timeout")
+	firstPort = flag.Int("fp", 1, "Begin scan from this port")
+	lastPort  = flag.Int("lp", 65535, "Stop scan at this port")
+	banner    = flag.Bool("b", false, "Show service banner")
+	stealth   = flag.Bool("s", false, "Stealth scan mode (SYN)")
+)
 
 func ulimit() int64 {
 	out, err := exec.Command("ulimit", "-n").Output()
@@ -62,12 +68,10 @@ func scanTCP(port int) {
 
 	if *banner {
 		conn.SetReadDeadline(time.Now().Add(*timeout))
-
 		bytesRead, _ = conn.Read(buffer)
 	}
 
 	conn.Close()
-
 	fmt.Printf("%d/tcp open", port)
 
 	if bytesRead > 0 {
@@ -77,9 +81,13 @@ func scanTCP(port int) {
 	}
 }
 
-func main() {
-	flag.Parse()
+func scanSYN(port int) {
+	// I use mac os and since it's basically BSD, I have troubles
+	// receiving packets with raw sockets. So, to be implemented
+	// when I figure out the data link layer routing for mac os...
+}
 
+func startScan(scanFunc func(int)) {
 	lock := semaphore.NewWeighted(ulimit())
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
@@ -90,7 +98,18 @@ func main() {
 		go func(port int) {
 			defer lock.Release(1)
 			defer wg.Done()
-			scanTCP(port)
+			scanFunc(port)
 		}(port)
+	}
+}
+
+func main() {
+	flag.Parse()
+
+	if *stealth {
+		fmt.Println("Stealth scan not yet supported")
+		//startScan(scanSYN)
+	} else {
+		startScan(scanTCP)
 	}
 }
