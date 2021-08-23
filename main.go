@@ -32,6 +32,21 @@ var (
 	stealth   = flag.Bool("s", false, "Stealth scan mode (SYN)")
 )
 
+func resolveHostName() {
+	// get IP address of a host
+	ips, err := net.LookupIP(*host)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	for _, ip := range ips {
+		if addr := ip.To4(); addr != nil {
+			*host = addr.String()
+			break
+		}
+	}
+}
+
 func ulimit() int64 {
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
@@ -105,18 +120,8 @@ func startScan(scanFunc func(int)) {
 
 func main() {
 	flag.Parse()
+	resolveHostName()
 
-	// get IP address of a host
-	ips, err := net.LookupIP(*host)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	for _, ip := range ips {
-		if addr := ip.To4(); addr != nil {
-			*host = addr.String()
-			break
-		}
-	}
 	fmt.Printf("IP: %s\n", *host)
 
 	if *stealth {
