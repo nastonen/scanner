@@ -114,6 +114,7 @@ func main() {
 	for _, ip := range ips {
 		if addr := ip.To4(); addr != nil {
 			*host = addr.String()
+			break
 		}
 	}
 	fmt.Printf("IP: %s\n", *host)
