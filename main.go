@@ -43,7 +43,7 @@ func ulimit() int64 {
 		panic(err)
 	}
 
-	return i
+	return i / 2
 }
 
 func scanTCP(port int) {
@@ -105,6 +105,14 @@ func startScan(scanFunc func(int)) {
 
 func main() {
 	flag.Parse()
+
+	// get IP address of a host
+	ips, err := net.LookupIP(*host)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	*host = ips[1].String()
+	fmt.Printf("IP: %s\n", *host)
 
 	if *stealth {
 		fmt.Println("Stealth scan not yet supported")
