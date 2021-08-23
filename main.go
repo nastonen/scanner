@@ -1,6 +1,6 @@
 /*
 TODO:
-		- stealth scan (SYN / FIN)
+		- stealth scan (FIN)
 		- service scan
 		- OS fingerprint
 		- HW address
@@ -9,12 +9,20 @@ TODO:
 
 package main
 
+/*
+#include <stdio.h>
+#cgo CFLAGS: -Wall
+#cgo LDFLAGS: -lnet -lpcap
+extern void scan(char *ip, int sp, int lp);
+*/
+import "C"
+
 import (
 	"context"
 	"flag"
 	"fmt"
 	"net"
-	"os/exec"
+//	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,6 +56,7 @@ func resolveHostName() {
 }
 
 func ulimit() int64 {
+	/*
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
 		panic(err)
@@ -59,6 +68,9 @@ func ulimit() int64 {
 	}
 
 	return i / 2
+	*/
+
+	return 200
 }
 
 func scanTCP(port int) {
@@ -96,11 +108,9 @@ func scanTCP(port int) {
 	}
 }
 
-func scanSYN(port int) {
-	// I use mac os and since it's basically BSD, I have troubles
-	// receiving packets with raw sockets. So, to be implemented
-	// when I figure out the data link layer routing for mac os...
-}
+/*func scanSYN(port int) {
+	C.scan(*host, port);
+}*/
 
 func startScan(scanFunc func(int)) {
 	lock := semaphore.NewWeighted(ulimit())
@@ -125,8 +135,11 @@ func main() {
 	fmt.Printf("IP: %s\n", *host)
 
 	if *stealth {
-		fmt.Println("Stealth scan not yet supported")
+		//fmt.Println("Stealth scan not yet supported")
 		//startScan(scanSYN)
+		cstr := C.CString(*host)
+		C.scan(cstr, C.int(*firstPort), C.int(*lastPort));
+		//C.free(unsafe.Pointer(cstr))
 	} else {
 		startScan(scanTCP)
 	}
