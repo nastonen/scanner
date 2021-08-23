@@ -22,7 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
-//	"os/exec"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,7 +56,6 @@ func resolveHostName() {
 }
 
 func ulimit() int64 {
-	/*
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
 		panic(err)
@@ -68,9 +67,6 @@ func ulimit() int64 {
 	}
 
 	return i / 2
-	*/
-
-	return 200
 }
 
 func scanTCP(port int) {
@@ -135,7 +131,6 @@ func main() {
 	fmt.Printf("IP: %s\n", *host)
 
 	if *stealth {
-		//fmt.Println("Stealth scan not yet supported")
 		//startScan(scanSYN)
 		cstr := C.CString(*host)
 		C.scan(cstr, C.int(*firstPort), C.int(*lastPort));
