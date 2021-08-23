@@ -111,7 +111,11 @@ func main() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	*host = ips[1].String()
+	for _, ip := range ips {
+		if addr := ip.To4(); addr != nil {
+			*host = addr.String()
+		}
+	}
 	fmt.Printf("IP: %s\n", *host)
 
 	if *stealth {
