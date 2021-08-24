@@ -11,6 +11,7 @@ package main
 
 /*
 #include <stdio.h>
+#include <stdlib.h>
 #cgo CFLAGS: -Wall
 #cgo LDFLAGS: -lnet -lpcap
 extern void scan(char *ip, int sp, int lp);
@@ -27,6 +28,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -134,7 +136,7 @@ func main() {
 		//startScan(scanSYN)
 		cstr := C.CString(*host)
 		C.scan(cstr, C.int(*firstPort), C.int(*lastPort));
-		//C.free(unsafe.Pointer(cstr))
+		C.free(unsafe.Pointer(cstr))
 	} else {
 		startScan(scanTCP)
 	}
