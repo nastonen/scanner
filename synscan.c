@@ -11,6 +11,7 @@ void packet_handler(u_char * user, const struct pcap_pkthdr *header, const u_cha
 {
 	struct tcphdr *tcp = (struct tcphdr *) (packet + LIBNET_IPV4_H + LIBNET_ETH_H);
 
+	/* fallthrough intended */
 	switch (tcp->th_flags) {
         case 0x12:
                 printf("%d/tcp open\n", ntohs(tcp->th_sport));
