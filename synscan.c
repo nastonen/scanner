@@ -11,17 +11,13 @@ void packet_handler(u_char * user, const struct pcap_pkthdr *header, const u_cha
 {
 	struct tcphdr *tcp = (struct tcphdr *) (packet + LIBNET_IPV4_H + LIBNET_ETH_H);
 
-	if (tcp->th_flags == 0x14) {
-		//printf("%d/tcp closed\n", ntohs (tcp->th_sport));
-		answer = 0;
-	} else {
-		if (tcp->th_flags == 0x12) {
-			printf("%d/tcp open\n", ntohs (tcp->th_sport));
-			answer = 0;
-		}
-	}
+	switch (tcp->th_flags) {
+        case 0x12:
+                printf("%d/tcp open\n", ntohs(tcp->th_sport));
+        case 0x14:
+                answer = 0;
+        }
 }
-
 
 void scan(char *ip, int sp, int lp)
 {
@@ -60,7 +56,7 @@ void scan(char *ip, int sp, int lp)
 		exit(1);
 	}
 
-	printf("IP: %s\n", libnet_addr2name4 (destipaddr, LIBNET_DONT_RESOLVE));
+	//printf("IP: %s\n", libnet_addr2name4 (destipaddr, LIBNET_DONT_RESOLVE));
 
 	/* get device we are using for libpcap */
 	if ((device = libnet_getdevice(ctx)) == NULL) {
