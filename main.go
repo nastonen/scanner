@@ -14,7 +14,7 @@ package main
 #include <stdlib.h>
 #cgo CFLAGS: -Wall
 #cgo LDFLAGS: -lnet -lpcap
-extern void scan(char *ip, int sp, int lp);
+extern void scan(char *ip, int sp, int lp, int timeout);
 */
 import "C"
 
@@ -35,7 +35,7 @@ import (
 
 var (
 	host      = flag.String("h", "localhost", "Network address to scan (ip or doman name")
-	timeout   = flag.Duration("t", time.Second*5, "Timeout")
+	timeout   = flag.Duration("t", time.Millisecond * 200, "Timeout in milliseconds")
 	firstPort = flag.Int("fp", 1, "Begin scan from this port")
 	lastPort  = flag.Int("lp", 65535, "Stop scan at this port")
 	banner    = flag.Bool("b", false, "Show service banner")
@@ -60,7 +60,8 @@ func resolveHostName() {
 func ulimit() int64 {
 	out, err := exec.Command("ulimit", "-n").Output()
 	if err != nil {
-		panic(err)
+		//panic(err)
+		return 1024
 	}
 
 	i, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
@@ -135,7 +136,7 @@ func main() {
 	if *stealth {
 		//startScan(scanSYN)
 		cstr := C.CString(*host)
-		C.scan(cstr, C.int(*firstPort), C.int(*lastPort));
+		C.scan(cstr, C.int(*firstPort), C.int(*lastPort), C.int(*timeout / 1000000));
 		C.free(unsafe.Pointer(cstr))
 	} else {
 		startScan(scanTCP)

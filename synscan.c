@@ -2,7 +2,7 @@
 #include <netinet/ip.h>
 #include <libnet.h>
 #include <pcap.h>
-#include <time.h>
+#include <sys/epoll.h>
 
 int answer = 0;		/* flag for scan timeout */
 
@@ -20,7 +20,7 @@ void packet_handler(u_char * user, const struct pcap_pkthdr *header, const u_cha
         }
 }
 
-void scan(char *ip, int sp, int lp)
+void scan(char *ip, int sp, int lp, int timeout)
 {
 	const char *device = NULL;		/* device for sniffing/sending */
 	in_addr_t destipaddr;			/* ip addr to scan */
@@ -33,7 +33,10 @@ void scan(char *ip, int sp, int lp)
 	/* if (SYN and RST) or (SYN and ACK) flags are set */
 	char *filter = "(tcp[13] == 0x14) || (tcp[13] == 0x12)";
 	struct bpf_program fp;			/* compiled filter */
-	time_t tv;
+	//time_t tv;
+	int fd, efd;				/* file descriptors for epoll */
+	const int MAX_EVENTS = lp - sp + 1;
+	struct epoll_event event, events[MAX_EVENTS];
 
 
 	/* open context */
@@ -106,6 +109,26 @@ void scan(char *ip, int sp, int lp)
 	libnet_seed_prand(ctx);
 
 
+	if ((fd = pcap_get_selectable_fd(handle)) == -1) {
+		fprintf(stderr, "Can't get fd for epoll, %s", pcap_geterr(handle));
+		exit(1);
+	}
+
+	if ((efd = epoll_create1(0)) == -1) {
+		fprintf(stderr, "Failed to create epoll file descriptor\n");
+		exit(1);
+	}
+
+	event.events = EPOLLIN;
+	event.data.fd = fd;
+
+	if (epoll_ctl(efd, EPOLL_CTL_ADD, 0, &event)) {
+		  fprintf(stderr, "Failed to add file descriptor to epoll\n");
+		  close(efd);
+		  exit(1);
+	}
+
+
 	for (int i = sp; i <= lp; i++) {
 		/* build TCP header */
 		tcp = libnet_build_tcp(libnet_get_prand(LIBNET_PRu16),	/* src port */
@@ -162,20 +185,24 @@ void scan(char *ip, int sp, int lp)
 
 		/* set variables for flag/counter */
 		answer = 1;
-		tv = time(NULL);
 
 		/* capture the reply */
 		while (answer) {
 			pcap_dispatch(handle, -1, packet_handler, NULL);
 
-			if ((time(NULL) - tv) > 0.2) {
-				answer = 0; /* timed out */
-				//printf("%d/tcp filtered\n", ports[i]);
-			}
+			epoll_wait(efd, events, MAX_EVENTS, timeout);
+
+			answer = 0;
 		}
 	}
 
 	/* exit cleanly */
+
+	if (close(efd)) {
+		fprintf(stderr, "Failed to close epoll file descriptor\n");
+		exit(1);
+	}
+
 	libnet_destroy(ctx);
 	//pcap_close(handle);
 }
