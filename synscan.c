@@ -122,7 +122,7 @@ void scan(char *ip, int sp, int lp, int timeout)
 	event.events = EPOLLIN;
 	event.data.fd = fd;
 
-	if (epoll_ctl(efd, EPOLL_CTL_ADD, 0, &event)) {
+	if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &event)) {
 		  fprintf(stderr, "Failed to add file descriptor to epoll\n");
 		  close(efd);
 		  exit(1);
